@@ -15,8 +15,7 @@ URL = 'https://jhomes.to-kousya.or.jp/search/jkknet/service/akiyaJyokenDirect'
 CHECK_INTERVAL = 180  # 秒
 PREVIOUS_CONTENT_FILE = 'prev_content.txt'
 LINE_ACCESS_TOKEN = 'Yu31Ihxp9sZRVHyywRch2sg0h3V9+kIKibmb7YT2uuJ6Zh9IlFlzc5EQvQbCtjGg7+AGy4pE1mE9WUjUuMi70XVZ8aOyDpKax7OdIWIcbOVfUVLs98wbVc32kAfhNenQK3sYIvF0CDnYGy0JN5WspwdB04t89/1O/w1cDnyilFU='
-#USER_ID = 'U696f84460f74855329d47f1588d014de'
-USER_ID = 'U063380621f535f508496214fefee41f9'
+USER_ID_LIST = ['U696f84460f74855329d47f1588d014de', 'U063380621f535f508496214fefee41f9']
 
 def send_line_message(message):
     url = 'https://api.line.me/v2/bot/message/push'
@@ -24,15 +23,16 @@ def send_line_message(message):
         'Authorization': f'Bearer {LINE_ACCESS_TOKEN}',
         'Content-Type': 'application/json'
     }
-    data = {
-        'to': USER_ID,
-        'messages': [{
-            'type': 'text',
-            'text': message
-        }]
-    }
-    response = requests.post(url, headers=headers, json=data)
-    print(response.status_code, response.text)
+    for USER_ID in USER_ID_LIST:
+        data = {
+            'to': USER_ID,
+            'messages': [{
+                'type': 'text',
+                'text': message
+            }]
+        }
+        response = requests.post(url, headers=headers, json=data)
+        print(response.status_code, response.text)
 
 # 前回の住宅名リストを読み込み
 def load_previous():
