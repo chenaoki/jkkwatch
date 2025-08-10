@@ -8,14 +8,63 @@ import json
 import os
 import urllib.request
 import requests
+from typing import List
 
 
 # 設定
 URL = 'https://jhomes.to-kousya.or.jp/search/jkknet/service/akiyaJyokenDirect'
-CHECK_INTERVAL = 180  # 秒
+CHECK_INTERVAL = 60  # 秒
 PREVIOUS_CONTENT_FILE = 'prev_content.txt'
+
 LINE_ACCESS_TOKEN = 'Yu31Ihxp9sZRVHyywRch2sg0h3V9+kIKibmb7YT2uuJ6Zh9IlFlzc5EQvQbCtjGg7+AGy4pE1mE9WUjUuMi70XVZ8aOyDpKax7OdIWIcbOVfUVLs98wbVc32kAfhNenQK3sYIvF0CDnYGy0JN5WspwdB04t89/1O/w1cDnyilFU='
 USER_ID_LIST = ['U696f84460f74855329d47f1588d014de', 'U063380621f535f508496214fefee41f9']
+SESSION = requests.Session()
+ENDPOINT = 'https://api.line.me/v2/bot/message/multicast'
+HEADERS = {
+    'Authorization': f'Bearer {LINE_ACCESS_TOKEN}',
+    'Content-Type': 'application/json'
+}
+
+def chunks(lst: List[str], size: int):
+    for i in range(0, len(lst), size):
+        yield lst[i:i+size]
+
+def send_line_message(message: str, user_ids: List[str] = None):
+    """同じメッセージを複数ユーザーへ安定送信（最大500件ずつ分割し、429はリトライ）"""
+    if user_ids is None:
+        user_ids = USER_ID_LIST
+
+    ok = 0
+    for batch in chunks(user_ids, 500):
+        data = {
+            'to': batch,
+            'messages': [{'type': 'text', 'text': message}]
+        }
+
+        # 簡易リトライ（429のみ最大3回）
+        for attempt in range(3):
+            resp = SESSION.post(ENDPOINT, headers=HEADERS, json=data, timeout=10)
+            if resp.status_code == 200:
+                ok += len(batch)
+                break
+            elif resp.status_code == 429:
+                # レート制限：少し待って再試行（指数バックオフ）
+                wait = 2 ** attempt
+                print(f"[WARN] 429 Rate limit. retry in {wait}s …")
+                time.sleep(wait)
+                continue
+            else:
+                try:
+                    print(f"[ERROR] {resp.status_code} {resp.json()}")
+                except Exception:
+                    print(f"[ERROR] {resp.status_code} {resp.text}")
+                break  # 429以外はリトライしない
+
+        # 連続呼び出しの間隔をちょっと空ける（保険）
+        time.sleep(0.2)
+
+    print(f"[INFO] multicast finish: sent to ~{ok} users")
+
 
 def send_line_message(message):
     url = 'https://api.line.me/v2/bot/message/push'
